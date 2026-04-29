@@ -219,3 +219,16 @@ python3 scripts/plot_pdu_clusters.py \
 
 The plot always uses the `x` and `y` embedding columns for display. The `--space` option chooses which cluster labels
 to overlay: labels produced from latent vectors or labels produced from UMAP coordinates.
+
+Summarize biological content of clusters:
+
+```
+python3 scripts/summarize_pdu_clusters.py \
+  --db pdu_output/pdus.sqlite \
+  --clusters-dir analysis/clusters_umap \
+  --out-dir analysis/cluster_summaries \
+  --space umap
+```
+
+Outputs include per-cluster size, mean neighbor count, secondary-structure composition, neighbor amino-acid
+composition, and representative PDB residue examples.
