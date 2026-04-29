@@ -188,14 +188,15 @@ python3 scripts/cluster_pdu_embeddings.py \
   --embeddings-dir analysis/embeddings \
   --out-dir analysis/clusters \
   --space latent \
-  --min-cluster-size 50
+  --min-cluster-size 25 \
+  --min-samples 5
 ```
 
 The recommended default is to cluster the autoencoder latent vectors (`--space latent`) and use UMAP only for plotting.
 To cluster the 2D UMAP coordinates instead:
 
 ```
-python3 scripts/cluster_pdu_embeddings.py --space umap
+python3 scripts/cluster_pdu_embeddings.py --space umap --min-cluster-size 50 --min-samples 10
 ```
 
 Outputs:

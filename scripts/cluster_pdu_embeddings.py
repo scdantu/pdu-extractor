@@ -5,6 +5,7 @@ from pathlib import Path
 
 import hdbscan
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 
 def main():
@@ -19,7 +20,13 @@ def main():
         help="Cluster autoencoder latent vectors or 2D UMAP coordinates. Latent is recommended.",
     )
     parser.add_argument("--min-cluster-size", type=int, default=50, help="HDBSCAN min_cluster_size.")
-    parser.add_argument("--min-samples", type=int, default=None, help="HDBSCAN min_samples. Defaults to min_cluster_size.")
+    parser.add_argument(
+        "--min-samples",
+        type=int,
+        default=5,
+        help="HDBSCAN min_samples. Lower values reduce noise; higher values are more conservative.",
+    )
+    parser.add_argument("--standardize", action="store_true", help="Standardize embedding dimensions before clustering.")
     args = parser.parse_args()
 
     embeddings_dir = Path(args.embeddings_dir)
@@ -43,6 +50,8 @@ def main():
         data = np.load(path)
         pdu_ids = data["pdu_ids"].astype(np.int64)
         X = data["Z"] if args.space == "latent" else data["coords"]
+        if args.standardize:
+            X = StandardScaler().fit_transform(X)
 
         clusterer = hdbscan.HDBSCAN(
             min_cluster_size=args.min_cluster_size,
@@ -67,6 +76,9 @@ def main():
                 "n_noise": n_noise,
                 "noise_fraction": n_noise / len(pdu_ids),
                 "largest_cluster": max(counts.values()) if counts else 0,
+                "min_cluster_size": args.min_cluster_size,
+                "min_samples": args.min_samples,
+                "standardized": args.standardize,
                 "cluster_file": str(cluster_path),
             }
         )
@@ -93,6 +105,9 @@ def write_summary_csv(path, rows):
             "n_noise",
             "noise_fraction",
             "largest_cluster",
+            "min_cluster_size",
+            "min_samples",
+            "standardized",
             "cluster_file",
         ]
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
