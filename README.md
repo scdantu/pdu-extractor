@@ -204,3 +204,17 @@ Outputs:
 analysis/clusters/pdu_clusters_A_latent.csv
 analysis/clusters/cluster_summary_latent.csv
 ```
+
+Plot clusters on the 2D UMAP coordinates:
+
+```
+python3 scripts/plot_pdu_clusters.py \
+  --embeddings-dir analysis/embeddings \
+  --clusters-dir analysis/clusters \
+  --out-dir analysis/plots \
+  --aa A \
+  --space umap
+```
+
+The plot always uses the `x` and `y` embedding columns for display. The `--space` option chooses which cluster labels
+to overlay: labels produced from latent vectors or labels produced from UMAP coordinates.
