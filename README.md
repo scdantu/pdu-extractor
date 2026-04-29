@@ -127,6 +127,31 @@ LIMIT 20;
 Before processing mdCATH, use the static PDB-derived PDUs to check whether residue environments cluster.
 The first pass uses one model per reference amino-acid class.
 
+Create the Python environment:
+
+```
+scripts/setup_pypdu.sh
+source pypdu/bin/activate
+```
+
+Equivalent manual setup:
+
+```
+python3 -m venv pypdu
+source pypdu/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+python scripts/check_environment.py
+```
+
+On macOS, the normal PyTorch wheel can use Apple Silicon GPU acceleration through MPS when available. On Linux
+cluster nodes with NVIDIA GPUs, use the CUDA-specific requirements file that matches the cluster CUDA module, for
+example:
+
+```
+python -m pip install -r requirements-cuda-cu124.txt
+```
+
 Export fixed-length feature vectors from the SQLite database:
 
 ```

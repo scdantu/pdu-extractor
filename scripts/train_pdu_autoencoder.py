@@ -61,7 +61,8 @@ def main():
     if not paths:
         raise SystemExit(f"No feature files found in {features_dir}")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = select_device()
+    print(f"Using PyTorch device: {device}")
     for path in paths:
         if not path.exists():
             print(f"Skipping missing feature file: {path}")
@@ -114,6 +115,14 @@ def reduce_to_2d(Z, seed):
         _, _, vt = np.linalg.svd(centered, full_matrices=False)
         coords = centered @ vt[:2].T
         return coords.astype(np.float32), "pca_fallback"
+
+
+def select_device():
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
 
 
 def write_csv(path, pdu_ids, Z, coords, method):

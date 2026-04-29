@@ -90,9 +90,12 @@ celerybeat.pid
 env/
 venv/
 ENV/
+pypdu/
+.cache/
 
 .idea/
 .DS_Store
+*.egg-info/
 inputf.txt
 outputf.txt
 bin/

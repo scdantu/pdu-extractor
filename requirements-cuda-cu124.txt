@@ -1,0 +1,22 @@
+# Install with:
+#   python -m pip install -r requirements-cuda-cu124.txt
+#
+# Use this on Linux nodes with NVIDIA GPUs and CUDA 12.4-compatible drivers.
+# For a different CUDA module on your cluster, regenerate this file from:
+#   https://docs.pytorch.org/get-started/locally/
+--index-url https://download.pytorch.org/whl/cu124
+--extra-index-url https://pypi.org/simple
+
+torch>=2.3
+
+# Non-PyTorch dependencies come from PyPI through --extra-index-url.
+numpy>=1.26
+pandas>=2.2
+scikit-learn>=1.4
+scipy>=1.12
+umap-learn>=0.5.6
+hdbscan>=0.8.33
+matplotlib>=3.8
+seaborn>=0.13
+jupyterlab>=4.0
+tqdm>=4.66

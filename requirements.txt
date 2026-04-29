@@ -1,0 +1,23 @@
+# Core scientific stack
+numpy>=1.26
+pandas>=2.2
+scikit-learn>=1.4
+scipy>=1.12
+
+# Embedding and clustering
+umap-learn>=0.5.6
+hdbscan>=0.8.33
+
+# Visualization and notebooks
+matplotlib>=3.8
+seaborn>=0.13
+jupyterlab>=4.0
+
+# Runtime utilities
+tqdm>=4.66
+
+# PyTorch:
+# - macOS, including Apple Silicon/MPS: install with normal pip wheels.
+# - Linux CPU nodes: normal pip wheels are fine.
+# - Linux NVIDIA GPU nodes: see requirements-cuda-cu124.txt.
+torch>=2.3
