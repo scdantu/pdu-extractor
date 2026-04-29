@@ -180,3 +180,27 @@ python3 scripts/train_pdu_autoencoder.py --aa A --epochs 40
 
 If `umap-learn` is installed, the CSV output uses UMAP coordinates. If it is not installed, the script still writes
 embeddings and uses a PCA fallback for the two plotting columns.
+
+Cluster the embeddings with HDBSCAN:
+
+```
+python3 scripts/cluster_pdu_embeddings.py \
+  --embeddings-dir analysis/embeddings \
+  --out-dir analysis/clusters \
+  --space latent \
+  --min-cluster-size 50
+```
+
+The recommended default is to cluster the autoencoder latent vectors (`--space latent`) and use UMAP only for plotting.
+To cluster the 2D UMAP coordinates instead:
+
+```
+python3 scripts/cluster_pdu_embeddings.py --space umap
+```
+
+Outputs:
+
+```
+analysis/clusters/pdu_clusters_A_latent.csv
+analysis/clusters/cluster_summary_latent.csv
+```
