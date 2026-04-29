@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+import argparse
+import sqlite3
+from pathlib import Path
+
+import numpy as np
+
+
+AA_ORDER = "ACDEFGHIKLMNPQRSTVWY"
+SS_ORDER = ("H", "E", "C")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Export fixed-length PDU feature matrices by reference amino acid.")
+    parser.add_argument("--db", default="pdu_output/pdus.sqlite", help="PDU SQLite database.")
+    parser.add_argument("--out-dir", default="analysis/features", help="Output directory for .npz files.")
+    parser.add_argument("--bin-width", type=float, default=1.0, help="Radial shell width in Angstroms.")
+    parser.add_argument("--radius", type=float, default=15.0, help="Maximum PDU radius in Angstroms.")
+    parser.add_argument("--min-pdus", type=int, default=25, help="Skip AA classes with fewer PDUs.")
+    args = parser.parse_args()
+
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    distance_bins = np.arange(0.0, args.radius + args.bin_width, args.bin_width)
+    n_bins = len(distance_bins) - 1
+    feature_names = build_feature_names(distance_bins)
+
+    conn = sqlite3.connect(args.db)
+    aa_counts = conn.execute(
+        """
+        SELECT reference_residue_one_letter, COUNT(*)
+        FROM pdu
+        GROUP BY reference_residue_one_letter
+        """
+    ).fetchall()
+
+    for aa, count in aa_counts:
+        if aa not in AA_ORDER or count < args.min_pdus:
+            continue
+        pdu_ids = [row[0] for row in conn.execute("SELECT id FROM pdu WHERE reference_residue_one_letter = ? ORDER BY id", (aa,))]
+        matrix = np.zeros((len(pdu_ids), len(feature_names)), dtype=np.float32)
+        pdu_id_to_row = {pdu_id: idx for idx, pdu_id in enumerate(pdu_ids)}
+
+        placeholders = ",".join("?" for _ in pdu_ids)
+        rows = conn.execute(
+            f"""
+            SELECT pdu_id, residue_one_letter, secondary_structure, distance_angstrom
+            FROM pdu_residue
+            WHERE pdu_id IN ({placeholders})
+            """,
+            pdu_ids,
+        )
+        for pdu_id, residue, secondary_structure, distance in rows:
+            residue_idx = AA_ORDER.find(residue)
+            if residue_idx < 0:
+                continue
+            ss_idx = SS_ORDER.index(secondary_structure) if secondary_structure in SS_ORDER else SS_ORDER.index("C")
+            bin_idx = min(int(float(distance) // args.bin_width), n_bins - 1)
+            col = ((residue_idx * len(SS_ORDER)) + ss_idx) * n_bins + bin_idx
+            matrix[pdu_id_to_row[pdu_id], col] += 1.0
+
+        row_sums = matrix.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1.0
+        matrix = matrix / row_sums
+
+        np.savez_compressed(
+            out_dir / f"pdu_features_{aa}.npz",
+            X=matrix,
+            pdu_ids=np.array(pdu_ids, dtype=np.int64),
+            feature_names=np.array(feature_names),
+            reference_aa=np.array([aa]),
+            distance_bins=distance_bins,
+            aa_order=np.array(list(AA_ORDER)),
+            ss_order=np.array(SS_ORDER),
+        )
+        print(f"{aa}: wrote {len(pdu_ids)} PDUs x {matrix.shape[1]} features")
+
+
+def build_feature_names(distance_bins):
+    names = []
+    for aa in AA_ORDER:
+        for ss in SS_ORDER:
+            for start, end in zip(distance_bins[:-1], distance_bins[1:]):
+                names.append(f"{aa}_{ss}_{start:.1f}-{end:.1f}A")
+    return names
+
+
+if __name__ == "__main__":
+    main()

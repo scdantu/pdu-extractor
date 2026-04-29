@@ -121,3 +121,37 @@ FROM unique_pdu_counts
 ORDER BY family_count DESC, occurrences DESC
 LIMIT 20;
 ```
+
+### Static PDB Clustering
+
+Before processing mdCATH, use the static PDB-derived PDUs to check whether residue environments cluster.
+The first pass uses one model per reference amino-acid class.
+
+Export fixed-length feature vectors from the SQLite database:
+
+```
+python3 scripts/export_pdu_features.py \
+  --db pdu_output/pdus.sqlite \
+  --out-dir analysis/features
+```
+
+Each vector is a normalized radial composition of neighboring residue type, secondary structure, and distance shell.
+By default this creates 900 features per PDU: 20 amino acids x 3 secondary-structure labels x 15 one-Angstrom shells.
+
+Train autoencoders and write 2D coordinates:
+
+```
+python3 scripts/train_pdu_autoencoder.py \
+  --features-dir analysis/features \
+  --out-dir analysis/embeddings \
+  --epochs 40
+```
+
+To process only one reference amino acid:
+
+```
+python3 scripts/train_pdu_autoencoder.py --aa A --epochs 40
+```
+
+If `umap-learn` is installed, the CSV output uses UMAP coordinates. If it is not installed, the script still writes
+embeddings and uses a PCA fallback for the two plotting columns.

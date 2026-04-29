@@ -97,6 +97,9 @@ inputf.txt
 outputf.txt
 bin/
 kmers.txt
+analysis/
+pdu_output/
+pdb_output/
 pdb/*.ent.gz
 pdb/*/*.ent.gz
 uniprotkb/**.fasta.gz
