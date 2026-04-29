@@ -232,3 +232,18 @@ python3 scripts/summarize_pdu_clusters.py \
 
 Outputs include per-cluster size, mean neighbor count, secondary-structure composition, neighbor amino-acid
 composition, and representative PDB residue examples.
+
+Summarize external CATH, EC, GO, or function annotations per cluster:
+
+```
+python3 scripts/summarize_cluster_annotations.py \
+  --db pdu_output/pdus.sqlite \
+  --clusters-dir analysis/clusters_umap \
+  --annotations annotations/cath_ec_go.csv \
+  --out-dir analysis/annotation_summaries \
+  --space umap
+```
+
+The annotation CSV can be PDB-level, chain-level, or residue-range-level. Required column: `pdb_id`. Optional
+coordinate columns: `chain_id`, `start_residue`, `end_residue`. All other columns are treated as annotation fields,
+for example `cath_id`, `ec_number`, `go_terms`, `function`, or `ligand`.
