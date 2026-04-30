@@ -163,6 +163,17 @@ python3 scripts/export_pdu_features.py \
 Each vector is a normalized radial composition of neighboring residue type, secondary structure, and distance shell.
 By default this creates 900 features per PDU: 20 amino acids x 3 secondary-structure labels x 15 one-Angstrom shells.
 
+To encode neighboring residues by broad physicochemical class instead of exact amino-acid identity:
+
+```
+python3 scripts/export_pdu_features.py \
+  --db pdu_output/pdus.sqlite \
+  --out-dir analysis/features_chemical \
+  --residue-encoding chemical
+```
+
+The chemical classes are `hydrophobic`, `aromatic`, `polar`, `positive`, `negative`, and `special` (`G/P`).
+
 Train autoencoders and write 2D coordinates:
 
 ```
@@ -231,7 +242,7 @@ python3 scripts/summarize_pdu_clusters.py \
 ```
 
 Outputs include per-cluster size, mean neighbor count, secondary-structure composition, neighbor amino-acid
-composition, and representative PDB residue examples.
+composition, neighbor physicochemical class composition, and representative PDB residue examples.
 
 Summarize external CATH, EC, GO, or function annotations per cluster:
 

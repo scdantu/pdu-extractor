@@ -5,8 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
+from kmers.residue_classes import AA_ORDER, RESIDUE_CLASS_ORDER, residue_class
 
-AA_ORDER = "ACDEFGHIKLMNPQRSTVWY"
 SS_ORDER = ("H", "E", "C")
 
 
@@ -17,6 +17,12 @@ def main():
     parser.add_argument("--bin-width", type=float, default=1.0, help="Radial shell width in Angstroms.")
     parser.add_argument("--radius", type=float, default=15.0, help="Maximum PDU radius in Angstroms.")
     parser.add_argument("--min-pdus", type=int, default=25, help="Skip AA classes with fewer PDUs.")
+    parser.add_argument(
+        "--residue-encoding",
+        choices=("aa", "chemical"),
+        default="aa",
+        help="Encode neighbors by exact amino-acid identity or broad physicochemical class.",
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -24,7 +30,8 @@ def main():
 
     distance_bins = np.arange(0.0, args.radius + args.bin_width, args.bin_width)
     n_bins = len(distance_bins) - 1
-    feature_names = build_feature_names(distance_bins)
+    residue_labels = list(AA_ORDER) if args.residue_encoding == "aa" else list(RESIDUE_CLASS_ORDER)
+    feature_names = build_feature_names(distance_bins, residue_labels)
 
     conn = sqlite3.connect(args.db)
     aa_counts = conn.execute(
@@ -52,8 +59,10 @@ def main():
             pdu_ids,
         )
         for pdu_id, residue, secondary_structure, distance in rows:
-            residue_idx = AA_ORDER.find(residue)
-            if residue_idx < 0:
+            label = residue if args.residue_encoding == "aa" else residue_class(residue)
+            try:
+                residue_idx = residue_labels.index(label)
+            except ValueError:
                 continue
             ss_idx = SS_ORDER.index(secondary_structure) if secondary_structure in SS_ORDER else SS_ORDER.index("C")
             bin_idx = min(int(float(distance) // args.bin_width), n_bins - 1)
@@ -71,15 +80,17 @@ def main():
             feature_names=np.array(feature_names),
             reference_aa=np.array([aa]),
             distance_bins=distance_bins,
+            residue_encoding=np.array([args.residue_encoding]),
+            residue_labels=np.array(residue_labels),
             aa_order=np.array(list(AA_ORDER)),
             ss_order=np.array(SS_ORDER),
         )
         print(f"{aa}: wrote {len(pdu_ids)} PDUs x {matrix.shape[1]} features")
 
 
-def build_feature_names(distance_bins):
+def build_feature_names(distance_bins, residue_labels):
     names = []
-    for aa in AA_ORDER:
+    for aa in residue_labels:
         for ss in SS_ORDER:
             for start, end in zip(distance_bins[:-1], distance_bins[1:]):
                 names.append(f"{aa}_{ss}_{start:.1f}-{end:.1f}A")

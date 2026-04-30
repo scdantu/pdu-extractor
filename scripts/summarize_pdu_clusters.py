@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from kmers.residue_classes import residue_class
+
 
 def main():
     parser = argparse.ArgumentParser(description="Summarize PDU clusters by joining cluster labels to SQLite PDU data.")
@@ -97,6 +99,7 @@ def build_cluster_stats(conn, pdu_ids, pdu_to_cluster):
         stats = cluster_stats[cluster_id]
         stats["neighbor_count"] += 1
         stats["neighbor_residues"][residue_one_letter] += 1
+        stats["neighbor_residue_classes"][residue_class(residue_one_letter)] += 1
         stats["neighbor_residue_names"][residue_name] += 1
         stats["secondary_structure"][secondary_structure or "C"] += 1
         stats["distance_sum"] += float(distance)
@@ -110,6 +113,7 @@ def new_cluster_stats():
         "examples": [],
         "neighbor_count": 0,
         "neighbor_residues": Counter(),
+        "neighbor_residue_classes": Counter(),
         "neighbor_residue_names": Counter(),
         "secondary_structure": Counter(),
         "distance_sum": 0.0,
@@ -132,6 +136,7 @@ def summary_row(aa, space, cluster_id, stats, top_n):
         "mean_neighbors": neighbor_count / pdu_count if pdu_count else 0.0,
         "mean_distance": stats["distance_sum"] / neighbor_count if neighbor_count else 0.0,
         "top_secondary_structure": format_counter(stats["secondary_structure"], top_n),
+        "top_neighbor_residue_classes": format_counter(stats["neighbor_residue_classes"], top_n),
         "top_neighbor_residues": format_counter(stats["neighbor_residues"], top_n),
         "example_pdu_ids": ";".join(str(example["pdu_id"]) for example in stats["examples"][:top_n]),
         "example_sites": ";".join(format_site(example) for example in stats["examples"][:top_n]),
