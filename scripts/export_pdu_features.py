@@ -59,13 +59,16 @@ def main():
             pdu_ids,
         )
         for pdu_id, residue, secondary_structure, distance in rows:
+            distance = float(distance)
+            if distance > args.radius:
+                continue
             label = residue if args.residue_encoding == "aa" else residue_class(residue)
             try:
                 residue_idx = residue_labels.index(label)
             except ValueError:
                 continue
             ss_idx = SS_ORDER.index(secondary_structure) if secondary_structure in SS_ORDER else SS_ORDER.index("C")
-            bin_idx = min(int(float(distance) // args.bin_width), n_bins - 1)
+            bin_idx = min(int(distance // args.bin_width), n_bins - 1)
             col = ((residue_idx * len(SS_ORDER)) + ss_idx) * n_bins + bin_idx
             matrix[pdu_id_to_row[pdu_id], col] += 1.0
 

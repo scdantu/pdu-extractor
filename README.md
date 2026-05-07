@@ -174,6 +174,20 @@ python3 scripts/export_pdu_features.py \
 
 The chemical classes are `hydrophobic`, `aromatic`, `polar`, `positive`, `negative`, and `special` (`G/P`).
 
+Measure how residue variability changes with distance from the reference residue:
+
+```
+python3 scripts/analyze_distance_variability.py \
+  --db pdu_output/pdus.sqlite \
+  --out-dir analysis/variability \
+  --bin-width 1.0 \
+  --radius 15.0
+```
+
+The output reports per-distance-shell entropy and specificity. `residue_specificity` and `class_specificity` are
+`1 - normalized_entropy`, so lower values mean more variable and likely less informative shells. The reference residue
+itself is excluded by default; pass `--include-self` if you want the distance-zero bin.
+
 Train autoencoders and write 2D coordinates:
 
 ```
