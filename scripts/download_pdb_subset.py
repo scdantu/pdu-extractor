@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import logging
 import random
 import sys
 import urllib.error
@@ -7,9 +8,12 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+from kmers.logging_utils import add_logging_args, configure_logging
+
 
 ENTRIES_INDEX_URL = "https://files.wwpdb.org/pub/pdb/derived_data/index/entries.idx"
 PDB_ENTRY_URL = "https://files.wwpdb.org/pub/pdb/data/structures/divided/pdb/{middle}/pdb{pdb_id}.ent.gz"
+logger = logging.getLogger("download_pdb_subset")
 
 
 def main():
@@ -19,7 +23,9 @@ def main():
     parser.add_argument("--ids-file", default=None, help="Optional file containing one PDB id per line.")
     parser.add_argument("--seed", type=int, default=1, help="Random seed used when sampling from the PDB index.")
     parser.add_argument("--workers", type=int, default=8, help="Concurrent downloads.")
+    add_logging_args(parser)
     args = parser.parse_args()
+    configure_logging(args.log_file, args.log_level)
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -32,6 +38,7 @@ def main():
     pdb_ids = pdb_ids[: args.count]
     if not pdb_ids:
         raise SystemExit("No PDB ids selected.")
+    logger.info("Downloading %s PDB entries into %s with %s workers", len(pdb_ids), output_dir, args.workers)
 
     downloaded = 0
     failed = []
@@ -42,12 +49,12 @@ def main():
             try:
                 path = future.result()
                 downloaded += 1
-                print(f"[{idx}/{len(pdb_ids)}] {pdb_id} -> {path}")
+                logger.info("[%s/%s] %s -> %s", idx, len(pdb_ids), pdb_id, path)
             except Exception as exc:
                 failed.append((pdb_id, str(exc)))
-                print(f"[{idx}/{len(pdb_ids)}] {pdb_id} failed: {exc}", file=sys.stderr)
+                logger.warning("[%s/%s] %s failed: %s", idx, len(pdb_ids), pdb_id, exc)
 
-    print(f"Downloaded {downloaded} files into {output_dir}")
+    logger.info("Downloaded %s files into %s", downloaded, output_dir)
     if failed:
         print(f"Failed downloads: {len(failed)}", file=sys.stderr)
         for pdb_id, reason in failed[:20]:

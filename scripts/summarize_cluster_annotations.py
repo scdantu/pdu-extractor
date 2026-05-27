@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+import logging
 import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
 
 import pandas as pd
+
+from kmers.logging_utils import add_logging_args, configure_logging
+
+logger = logging.getLogger("summarize_cluster_annotations")
 
 
 def main():
@@ -17,7 +22,9 @@ def main():
     parser.add_argument("--aa", default=None, help="Optional single reference amino acid.")
     parser.add_argument("--space", choices=("latent", "umap"), default="umap", help="Cluster label source.")
     parser.add_argument("--top-n", type=int, default=10, help="Number of top annotations to report per field.")
+    add_logging_args(parser)
     args = parser.parse_args()
+    configure_logging(args.log_file, args.log_level)
 
     annotation_rows, annotation_fields = load_annotations(args.annotations)
     out_dir = Path(args.out_dir)
@@ -33,7 +40,7 @@ def main():
     all_rows = []
     for cluster_path in cluster_paths:
         if not cluster_path.exists():
-            print(f"Skipping missing cluster file: {cluster_path}")
+            logger.warning("Skipping missing cluster file: %s", cluster_path)
             continue
         aa = cluster_path.name.replace("pdu_clusters_", "").replace(f"_{args.space}.csv", "")
         clusters = pd.read_csv(cluster_path)
@@ -48,7 +55,7 @@ def main():
                 for cluster_id, stats in sorted(summary.items())]
         write_dict_rows(out_dir / f"annotation_summary_{aa}_{args.space}.csv", rows)
         all_rows.extend(rows)
-        print(f"{aa}: wrote annotation summaries for {len(rows)} clusters")
+        logger.info("%s: wrote annotation summaries for %s clusters", aa, len(rows))
 
     write_dict_rows(out_dir / f"annotation_summary_all_{args.space}.csv", all_rows)
 

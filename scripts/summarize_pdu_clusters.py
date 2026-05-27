@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+import logging
 import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
 
 import pandas as pd
 
+from kmers.logging_utils import add_logging_args, configure_logging
 from kmers.residue_classes import residue_class
+
+logger = logging.getLogger("summarize_pdu_clusters")
 
 
 def main():
@@ -18,7 +22,9 @@ def main():
     parser.add_argument("--aa", default=None, help="Optional single reference amino acid.")
     parser.add_argument("--space", choices=("latent", "umap"), default="umap", help="Cluster label source.")
     parser.add_argument("--top-n", type=int, default=8, help="Number of top residues/SS labels/examples to report.")
+    add_logging_args(parser)
     args = parser.parse_args()
+    configure_logging(args.log_file, args.log_level)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -33,13 +39,13 @@ def main():
     all_summary_rows = []
     for cluster_path in cluster_paths:
         if not cluster_path.exists():
-            print(f"Skipping missing cluster file: {cluster_path}")
+            logger.warning("Skipping missing cluster file: %s", cluster_path)
             continue
         aa = cluster_path.name.replace("pdu_clusters_", "").replace(f"_{args.space}.csv", "")
         clusters = pd.read_csv(cluster_path)
         clusters = clusters[clusters["cluster"] != -1].copy()
         if clusters.empty:
-            print(f"{aa}: no non-noise clusters")
+            logger.info("%s: no non-noise clusters", aa)
             continue
 
         pdu_to_cluster = dict(zip(clusters["pdu_id"].astype(int), clusters["cluster"].astype(int)))
@@ -53,7 +59,7 @@ def main():
 
         for cluster_id, stats in sorted(cluster_stats.items()):
             all_summary_rows.append(summary_row(aa, args.space, cluster_id, stats, args.top_n))
-        print(f"{aa}: wrote {len(cluster_stats)} cluster summaries")
+        logger.info("%s: wrote %s cluster summaries", aa, len(cluster_stats))
 
     write_combined_summary(out_dir / f"cluster_summary_all_{args.space}.csv", all_summary_rows)
 

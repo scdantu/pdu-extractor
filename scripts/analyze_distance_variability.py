@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+import logging
 import math
 import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
 
 from kmers.residue_classes import AA_ORDER, RESIDUE_CLASS_ORDER, residue_class
+from kmers.logging_utils import add_logging_args, configure_logging
 
 
 SS_ORDER = ("H", "E", "C")
+logger = logging.getLogger("analyze_distance_variability")
 
 
 def main():
@@ -20,7 +23,9 @@ def main():
     parser.add_argument("--radius", type=float, default=15.0, help="Maximum distance in Angstroms.")
     parser.add_argument("--aa", default=None, help="Optional reference amino acid to analyze.")
     parser.add_argument("--include-self", action="store_true", help="Include the reference residue at distance 0.")
+    add_logging_args(parser)
     args = parser.parse_args()
+    configure_logging(args.log_file, args.log_level)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -103,7 +108,7 @@ def main():
 
     output_path = out_dir / "distance_variability.csv"
     write_rows(output_path, rows)
-    print(f"Wrote {output_path}")
+    logger.info("Wrote %s", output_path)
 
 
 def new_bin_stats():

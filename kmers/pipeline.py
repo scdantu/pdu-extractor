@@ -2,6 +2,7 @@ import argparse
 import os
 from pathlib import Path
 
+from kmers.logging_utils import add_logging_args, configure_logging
 from kmers.pdb_gz_processor import GZProcessor
 
 """
@@ -95,7 +96,9 @@ if __name__ == '__main__':
                         help='Optional mdCATH-style residue annotation CSV with secondary structure, SASA, and family IDs')
     parser.add_argument('--pdu_radius_angstrom', default=15.0, type=float,
                         help='PDU neighborhood radius in Angstroms. 15 Angstroms equals 1.5 nm')
+    add_logging_args(parser)
     args = parser.parse_args()
+    configure_logging(args.log_file, args.log_level)
 
     if args.handle_all_pdbs not in [True, False]:
         raise ValueError("The --handle_all_pdbs argument must be set to either True or False.")

@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+import logging
 from pathlib import Path
 
 import hdbscan
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+
+from kmers.logging_utils import add_logging_args, configure_logging
+
+logger = logging.getLogger("cluster_pdu_embeddings")
 
 
 def main():
@@ -27,7 +32,9 @@ def main():
         help="HDBSCAN min_samples. Lower values reduce noise; higher values are more conservative.",
     )
     parser.add_argument("--standardize", action="store_true", help="Standardize embedding dimensions before clustering.")
+    add_logging_args(parser)
     args = parser.parse_args()
+    configure_logging(args.log_file, args.log_level)
 
     embeddings_dir = Path(args.embeddings_dir)
     out_dir = Path(args.out_dir)
@@ -43,7 +50,7 @@ def main():
     summary_rows = []
     for path in paths:
         if not path.exists():
-            print(f"Skipping missing embedding file: {path}")
+            logger.warning("Skipping missing embedding file: %s", path)
             continue
 
         aa = path.stem.replace("pdu_embedding_", "")
@@ -82,7 +89,7 @@ def main():
                 "cluster_file": str(cluster_path),
             }
         )
-        print(f"{aa}: {len(cluster_labels)} clusters, {n_noise}/{len(pdu_ids)} noise points")
+        logger.info("%s: %s clusters, %s/%s noise points", aa, len(cluster_labels), n_noise, len(pdu_ids))
 
     write_summary_csv(out_dir / f"cluster_summary_{args.space}.csv", summary_rows)
 

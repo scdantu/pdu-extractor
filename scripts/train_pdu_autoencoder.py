@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+import logging
 from pathlib import Path
 
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
+
+from kmers.logging_utils import add_logging_args, configure_logging
+
+logger = logging.getLogger("train_pdu_autoencoder")
 
 
 class Autoencoder(nn.Module):
@@ -45,7 +50,9 @@ def main():
     parser.add_argument("--batch-size", type=int, default=256, help="Batch size.")
     parser.add_argument("--learning-rate", type=float, default=1e-3, help="Learning rate.")
     parser.add_argument("--seed", type=int, default=1, help="Random seed.")
+    add_logging_args(parser)
     args = parser.parse_args()
+    configure_logging(args.log_file, args.log_level)
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -62,10 +69,10 @@ def main():
         raise SystemExit(f"No feature files found in {features_dir}")
 
     device = select_device()
-    print(f"Using PyTorch device: {device}")
+    logger.info("Using PyTorch device: %s", device)
     for path in paths:
         if not path.exists():
-            print(f"Skipping missing feature file: {path}")
+            logger.warning("Skipping missing feature file: %s", path)
             continue
         data = np.load(path, allow_pickle=True)
         reference_aa = str(data["reference_aa"][0])
@@ -91,7 +98,7 @@ def main():
                 total_loss += float(loss.item()) * len(batch)
                 total_rows += len(batch)
             if epoch == 1 or epoch == args.epochs or epoch % 10 == 0:
-                print(f"{reference_aa} epoch {epoch}/{args.epochs} loss={total_loss / total_rows:.6f}")
+                logger.info("%s epoch %s/%s loss=%.6f", reference_aa, epoch, args.epochs, total_loss / total_rows)
 
         model.eval()
         with torch.no_grad():
@@ -101,7 +108,7 @@ def main():
         np.savez_compressed(out_dir / f"pdu_embedding_{reference_aa}.npz", Z=Z, coords=coords, pdu_ids=pdu_ids)
         write_csv(out_dir / f"pdu_embedding_{reference_aa}.csv", pdu_ids, Z, coords, method)
         torch.save(model.state_dict(), out_dir / f"pdu_autoencoder_{reference_aa}.pt")
-        print(f"{reference_aa}: wrote embeddings with {method} coordinates")
+        logger.info("%s: wrote embeddings with %s coordinates", reference_aa, method)
 
 
 def reduce_to_2d(Z, seed):

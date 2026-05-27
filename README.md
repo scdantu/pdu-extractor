@@ -98,6 +98,30 @@ PYTHONPATH=. python3 kmers/pipeline.py \
   --annotation_csv path/to/mdcath_residue_annotations.csv
 ```
 
+Or use the wrapper script:
+
+```
+scripts/extract_pdus.sh
+```
+
+Useful options:
+
+```
+PDU_DB=pdu_output/pdus_10A.sqlite RADIUS_ANGSTROM=10.0 scripts/extract_pdus.sh
+RESET_OUTPUT=true scripts/extract_pdus.sh
+ANNOTATION_CSV=path/to/annotations.csv scripts/extract_pdus.sh
+LOG_DIR=logs/full_pdb scripts/extract_pdus.sh
+```
+
+Most Python scripts support:
+
+```
+--log-file logs/script_name.log
+--log-level INFO
+```
+
+Use `DEBUG` for more detail, or `WARNING` to keep server logs quieter.
+
 The annotation CSV is optional, but SASA values require it. The loader accepts common column names:
 
 - PDB id: `pdb_id`, `pdb`, `structure_id`, or `entry_id`

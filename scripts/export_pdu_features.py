@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 import argparse
+import logging
 import sqlite3
 from pathlib import Path
 
 import numpy as np
 
 from kmers.residue_classes import AA_ORDER, RESIDUE_CLASS_ORDER, residue_class
+from kmers.logging_utils import add_logging_args, configure_logging
 
 SS_ORDER = ("H", "E", "C")
+logger = logging.getLogger("export_pdu_features")
 
 
 def main():
@@ -23,7 +26,9 @@ def main():
         default="aa",
         help="Encode neighbors by exact amino-acid identity or broad physicochemical class.",
     )
+    add_logging_args(parser)
     args = parser.parse_args()
+    configure_logging(args.log_file, args.log_level)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -88,7 +93,7 @@ def main():
             aa_order=np.array(list(AA_ORDER)),
             ss_order=np.array(SS_ORDER),
         )
-        print(f"{aa}: wrote {len(pdu_ids)} PDUs x {matrix.shape[1]} features")
+        logger.info("%s: wrote %s PDUs x %s features", aa, len(pdu_ids), matrix.shape[1])
 
 
 def build_feature_names(distance_bins, residue_labels):

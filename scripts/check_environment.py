@@ -5,6 +5,8 @@ import platform
 import sys
 from pathlib import Path
 
+from kmers.logging_utils import add_logging_args, configure_logging
+
 
 REQUIRED_MODULES = [
     "numpy",
@@ -21,6 +23,12 @@ REQUIRED_MODULES = [
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Check the pypdu Python environment.")
+    add_logging_args(parser)
+    args = parser.parse_args()
+    configure_logging(args.log_file, args.log_level)
     configure_local_caches()
     print(f"Python: {sys.version.split()[0]}")
     print(f"Platform: {platform.platform()}")
