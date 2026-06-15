@@ -122,6 +122,23 @@ Most Python scripts support:
 
 Use `DEBUG` for more detail, or `WARNING` to keep server logs quieter.
 
+Generate database statistics after PDU extraction:
+
+```
+PYTHONPATH=. python scripts/pdu_db_stats.py \
+  --db pdu_output/pdus.sqlite \
+  --out-dir analysis/db_stats \
+  --log-file logs/db_stats.log
+```
+
+For heavier neighbor-level statistics, add:
+
+```
+--include-residue-stats
+```
+
+This scans `pdu_residue`, so expect it to take longer on full PDB-scale databases.
+
 The annotation CSV is optional, but SASA values require it. The loader accepts common column names:
 
 - PDB id: `pdb_id`, `pdb`, `structure_id`, or `entry_id`
