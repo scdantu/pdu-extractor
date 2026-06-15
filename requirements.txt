@@ -15,6 +15,9 @@ jupyterlab>=4.0
 
 # Runtime utilities
 tqdm>=4.66
+duckdb>=1.0
+pyarrow>=15
+polars>=1.0
 
 # PyTorch:
 # - macOS, including Apple Silicon/MPS: install with normal pip wheels.

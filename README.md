@@ -139,6 +139,36 @@ For heavier neighbor-level statistics, add:
 
 This scans `pdu_residue`, so expect it to take longer on full PDB-scale databases.
 
+Export a large SQLite database into per-amino-acid analysis stores:
+
+```
+PYTHONPATH=. python scripts/export_analysis_store.py \
+  --db /path/to/pdus.sqlite \
+  --out-dir analysis/per_aa_sqlite \
+  --format split-sqlite \
+  --log-file logs/export_split_sqlite.log
+```
+
+Or export partitioned Parquet:
+
+```
+PYTHONPATH=. python scripts/export_analysis_store.py \
+  --db /path/to/pdus.sqlite \
+  --out-dir analysis/parquet \
+  --format parquet \
+  --log-file logs/export_parquet.log
+```
+
+For cluster jobs, the safest parallel pattern is one job per amino-acid class:
+
+```
+PYTHONPATH=. python scripts/export_analysis_store.py \
+  --db /path/to/pdus.sqlite \
+  --out-dir analysis/per_aa_sqlite \
+  --format split-sqlite \
+  --aa A
+```
+
 The annotation CSV is optional, but SASA values require it. The loader accepts common column names:
 
 - PDB id: `pdb_id`, `pdb`, `structure_id`, or `entry_id`
