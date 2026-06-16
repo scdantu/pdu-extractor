@@ -139,6 +139,18 @@ For heavier neighbor-level statistics, add:
 
 This scans `pdu_residue`, so expect it to take longer on full PDB-scale databases.
 
+For a directory of per-amino-acid SQLite databases:
+
+```
+PYTHONPATH=. python scripts/pdu_db_stats.py \
+  --db-dir analysis/per_aa_sqlite \
+  --glob 'pdus_*.sqlite' \
+  --out-dir analysis/db_stats_per_aa \
+  --log-file logs/db_stats_per_aa.log
+```
+
+Add `--exact-combined-hashes` only if you need exact unique PDU hashes across all DBs; it can use substantial memory.
+
 Export a large SQLite database into per-amino-acid analysis stores:
 
 ```
