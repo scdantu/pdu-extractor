@@ -49,6 +49,8 @@ def main():
     parser.add_argument("--epochs", type=int, default=40, help="Training epochs per AA class.")
     parser.add_argument("--batch-size", type=int, default=256, help="Batch size.")
     parser.add_argument("--learning-rate", type=float, default=1e-3, help="Learning rate.")
+    parser.add_argument("--validation-fraction", type=float, default=0.1, help="Fraction held out for validation.")
+    parser.add_argument("--patience", type=int, default=0, help="Early-stopping patience in epochs. 0 disables it.")
     parser.add_argument("--seed", type=int, default=1, help="Random seed.")
     add_logging_args(parser)
     args = parser.parse_args()
@@ -82,13 +84,24 @@ def main():
         model = Autoencoder(X.shape[1], args.latent_dim).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
         loss_fn = nn.MSELoss()
-        loader = DataLoader(TensorDataset(torch.from_numpy(X)), batch_size=args.batch_size, shuffle=True)
+        train_X, validation_X = split_train_validation(X, args.validation_fraction, args.seed)
+        train_loader = DataLoader(TensorDataset(torch.from_numpy(train_X)), batch_size=args.batch_size, shuffle=True)
+        validation_tensor = torch.from_numpy(validation_X).to(device) if validation_X is not None else None
+        logger.info(
+            "%s: training rows=%s validation rows=%s",
+            reference_aa,
+            len(train_X),
+            0 if validation_X is None else len(validation_X),
+        )
 
-        model.train()
+        best_validation_loss = float("inf")
+        best_state = None
+        epochs_without_improvement = 0
         for epoch in range(1, args.epochs + 1):
+            model.train()
             total_loss = 0.0
             total_rows = 0
-            for (batch,) in loader:
+            for (batch,) in train_loader:
                 batch = batch.to(device)
                 optimizer.zero_grad()
                 reconstructed = model(batch)
@@ -97,8 +110,35 @@ def main():
                 optimizer.step()
                 total_loss += float(loss.item()) * len(batch)
                 total_rows += len(batch)
+
+            train_loss = total_loss / total_rows
+            validation_loss = evaluate_loss(model, validation_tensor, loss_fn, args.batch_size)
             if epoch == 1 or epoch == args.epochs or epoch % 10 == 0:
-                logger.info("%s epoch %s/%s loss=%.6f", reference_aa, epoch, args.epochs, total_loss / total_rows)
+                if validation_loss is None:
+                    logger.info("%s epoch %s/%s train_loss=%.6f", reference_aa, epoch, args.epochs, train_loss)
+                else:
+                    logger.info(
+                        "%s epoch %s/%s train_loss=%.6f validation_loss=%.6f",
+                        reference_aa,
+                        epoch,
+                        args.epochs,
+                        train_loss,
+                        validation_loss,
+                    )
+
+            if validation_loss is not None:
+                if validation_loss < best_validation_loss:
+                    best_validation_loss = validation_loss
+                    best_state = {key: value.detach().cpu().clone() for key, value in model.state_dict().items()}
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+                if args.patience > 0 and epochs_without_improvement >= args.patience:
+                    logger.info("%s: early stopping at epoch %s", reference_aa, epoch)
+                    break
+
+        if best_state is not None:
+            model.load_state_dict(best_state)
 
         model.eval()
         with torch.no_grad():
@@ -109,6 +149,37 @@ def main():
         write_csv(out_dir / f"pdu_embedding_{reference_aa}.csv", pdu_ids, Z, coords, method)
         torch.save(model.state_dict(), out_dir / f"pdu_autoencoder_{reference_aa}.pt")
         logger.info("%s: wrote embeddings with %s coordinates", reference_aa, method)
+
+
+def split_train_validation(X, validation_fraction, seed):
+    if validation_fraction <= 0:
+        return X, None
+    if not 0 < validation_fraction < 1:
+        raise ValueError("--validation-fraction must be between 0 and 1")
+    rng = np.random.default_rng(seed)
+    indices = rng.permutation(len(X))
+    validation_size = max(1, int(len(X) * validation_fraction))
+    if validation_size >= len(X):
+        validation_size = len(X) - 1
+    validation_indices = indices[:validation_size]
+    train_indices = indices[validation_size:]
+    return X[train_indices], X[validation_indices]
+
+
+def evaluate_loss(model, validation_tensor, loss_fn, batch_size):
+    if validation_tensor is None:
+        return None
+    model.eval()
+    total_loss = 0.0
+    total_rows = 0
+    with torch.no_grad():
+        for start in range(0, len(validation_tensor), batch_size):
+            batch = validation_tensor[start:start + batch_size]
+            reconstructed = model(batch)
+            loss = loss_fn(reconstructed, batch)
+            total_loss += float(loss.item()) * len(batch)
+            total_rows += len(batch)
+    return total_loss / total_rows
 
 
 def reduce_to_2d(Z, seed):

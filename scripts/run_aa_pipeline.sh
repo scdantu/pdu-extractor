@@ -23,6 +23,8 @@ EPOCHS="${EPOCHS:-15}"
 BATCH_SIZE="${BATCH_SIZE:-256}"
 LATENT_DIM="${LATENT_DIM:-16}"
 LEARNING_RATE="${LEARNING_RATE:-0.001}"
+VALIDATION_FRACTION="${VALIDATION_FRACTION:-0.1}"
+PATIENCE="${PATIENCE:-0}"
 SPACE="${SPACE:-umap}"
 MIN_CLUSTER_SIZE="${MIN_CLUSTER_SIZE:-50}"
 MIN_SAMPLES="${MIN_SAMPLES:-10}"
@@ -56,6 +58,8 @@ python scripts/train_pdu_autoencoder.py \
     --epochs "${EPOCHS}" \
     --batch-size "${BATCH_SIZE}" \
     --learning-rate "${LEARNING_RATE}" \
+    --validation-fraction "${VALIDATION_FRACTION}" \
+    --patience "${PATIENCE}" \
     --log-file "${LOG_DIR}/${AA}_training.log" \
     --log-level "${LOG_LEVEL}"
 
