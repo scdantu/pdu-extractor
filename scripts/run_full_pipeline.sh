@@ -42,8 +42,16 @@ if command -v parallel &>/dev/null && [[ ${PARALLEL} -gt 1 ]]; then
     export DB_DIR
     export REPO_DIR
     export PYTHONPATH="${REPO_DIR}:${PYTHONPATH:-}"
-    printf '%s\n' "${AAS[@]}" | parallel -j "${PARALLEL}" \
-        "scripts/run_aa_pipeline.sh {}"
+    # Distribute GPUs round-robin (requires nvidia-smi, optional)
+    if command -v nvidia-smi &>/dev/null; then
+        N_GPUS=$(nvidia-smi --list-gpus | wc -l)
+        echo "Detected ${N_GPUS} GPU(s) - distributing across parallel jobs"
+        printf '%s\n' "${AAS[@]}" | parallel -j "${PARALLEL}" \
+            "CUDA_VISIBLE_DEVICES={%${N_GPUS}} scripts/run_aa_pipeline.sh {}"
+    else
+        printf '%s\n' "${AAS[@]}" | parallel -j "${PARALLEL}" \
+            "scripts/run_aa_pipeline.sh {}"
+    fi
 elif [[ ${PARALLEL} -gt 1 ]]; then
     echo "GNU parallel not found, using xargs with ${PARALLEL} jobs"
     export DB_DIR

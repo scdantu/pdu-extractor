@@ -73,7 +73,14 @@ def main():
         raise SystemExit(f"No embedding files found in {embeddings_dir}")
 
     use_gpu = CUML_AVAILABLE and not args.force_cpu
-    logger.info("Using %s for HDBSCAN clustering", "GPU (RAPIDS CUML)" if use_gpu else "CPU")
+
+    # Log GPU info if using GPU
+    if use_gpu:
+        import os
+        cuda_devices = os.getenv("CUDA_VISIBLE_DEVICES", "auto")
+        logger.info("Using GPU (RAPIDS CUML) - CUDA_VISIBLE_DEVICES=%s", cuda_devices)
+    else:
+        logger.info("Using CPU (hdbscan)")
 
     summary_rows = []
     for path in paths:

@@ -54,6 +54,11 @@ exec > >(tee -a "${PIPELINE_LOG}") 2>&1
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO run_aa_pipeline: AA=${AA}"
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO run_aa_pipeline: DB=${DB}"
 
+# Log GPU info if using multiple GPUs
+if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') INFO run_aa_pipeline: CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
+fi
+
 export PYTHONPATH="${REPO_DIR}:${PYTHONPATH:-}"
 
 python scripts/export_pdu_features.py \
