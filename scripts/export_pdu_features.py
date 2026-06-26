@@ -55,44 +55,46 @@ def main():
     for aa, count in aa_counts:
         if aa not in AA_ORDER or count < args.min_pdus:
             continue
+
+        logger.info("Processing amino acid %s (total PDUs: %d)", aa, count)
         pdu_ids = [row[0] for row in conn.execute("SELECT id FROM pdu WHERE reference_residue_one_letter = ? ORDER BY id", (aa,))]
         matrix = np.zeros((len(pdu_ids), len(feature_names)), dtype=np.float32)
         pdu_id_to_row = {pdu_id: idx for idx, pdu_id in enumerate(pdu_ids)}
 
-        # Batch query to avoid SQLite "too many SQL variables" error (limit ~32k)
-        # Split into chunks of 10k PDUs
-        batch_size = 10000
-        for batch_start in range(0, len(pdu_ids), batch_size):
-            batch_end = min(batch_start + batch_size, len(pdu_ids))
-            batch_ids = pdu_ids[batch_start:batch_end]
+        logger.info("  → Loaded %d PDU IDs, building feature matrix", len(pdu_ids))
 
-            placeholders = ",".join("?" for _ in batch_ids)
-            rows = conn.execute(
-                f"""
-                SELECT pdu_id, residue_one_letter, secondary_structure, distance_angstrom
-                FROM pdu_residue
-                WHERE pdu_id IN ({placeholders})
-                """,
-                batch_ids,
-            )
-            for pdu_id, residue, secondary_structure, distance in rows:
-                distance = float(distance)
-                if distance > args.radius:
-                    continue
-                label = residue if args.residue_encoding == "aa" else residue_class(residue)
-                try:
-                    residue_idx = residue_labels.index(label)
-                except ValueError:
-                    continue
-                ss_idx = SS_ORDER.index(secondary_structure) if secondary_structure in SS_ORDER else SS_ORDER.index("C")
-                bin_idx = min(int(distance // args.bin_width), n_bins - 1)
-                col = ((residue_idx * len(SS_ORDER)) + ss_idx) * n_bins + bin_idx
-                matrix[pdu_id_to_row[pdu_id], col] += 1.0
+        # Use JOIN instead of IN clause for better SQLite performance
+        # Avoids "too many SQL variables" error and is faster than batching
+        rows = conn.execute(
+            """
+            SELECT pr.pdu_id, pr.residue_one_letter, pr.secondary_structure, pr.distance_angstrom
+            FROM pdu_residue pr
+            INNER JOIN pdu p ON pr.pdu_id = p.id
+            WHERE p.reference_residue_one_letter = ?
+            """,
+            (aa,),
+        )
 
+        for pdu_id, residue, secondary_structure, distance in rows:
+            distance = float(distance)
+            if distance > args.radius:
+                continue
+            label = residue if args.residue_encoding == "aa" else residue_class(residue)
+            try:
+                residue_idx = residue_labels.index(label)
+            except ValueError:
+                continue
+            ss_idx = SS_ORDER.index(secondary_structure) if secondary_structure in SS_ORDER else SS_ORDER.index("C")
+            bin_idx = min(int(distance // args.bin_width), n_bins - 1)
+            col = ((residue_idx * len(SS_ORDER)) + ss_idx) * n_bins + bin_idx
+            matrix[pdu_id_to_row[pdu_id], col] += 1.0
+
+        logger.info("  → Normalizing features")
         row_sums = matrix.sum(axis=1, keepdims=True)
         row_sums[row_sums == 0] = 1.0
         matrix = matrix / row_sums
 
+        logger.info("  → Saving compressed features")
         np.savez_compressed(
             out_dir / f"pdu_features_{aa}.npz",
             X=matrix,

@@ -55,16 +55,21 @@ mkdir -p "${LOG_DIR}"
 PIPELINE_LOG="${LOG_DIR}/${AA}_pipeline.log"
 exec > >(tee -a "${PIPELINE_LOG}") 2>&1
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') INFO run_aa_pipeline: AA=${AA}"
-echo "$(date '+%Y-%m-%d %H:%M:%S') INFO run_aa_pipeline: DB=${DB}"
+echo "$(date '+%Y-%m-%d %H:%M:%S') ============================================"
+echo "$(date '+%Y-%m-%d %H:%M:%S') Starting pipeline for AA=${AA}"
+echo "$(date '+%Y-%m-%d %H:%M:%S') DB=${DB}"
+echo "$(date '+%Y-%m-%d %H:%M:%S') min_cluster_size=${MIN_CLUSTER_SIZE}"
+echo "$(date '+%Y-%m-%d %H:%M:%S') ============================================"
 
 # Log GPU info if using multiple GPUs
 if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') INFO run_aa_pipeline: CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') GPU: CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
 fi
 
 export PYTHONPATH="${REPO_DIR}:${PYTHONPATH:-}"
 
+echo ""
+echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 1: Extracting features (${AA})..."
 python scripts/export_pdu_features.py \
     --db "${DB}" \
     --out-dir "${FEATURES_DIR}" \
@@ -75,6 +80,8 @@ python scripts/export_pdu_features.py \
     --log-file "${LOG_DIR}/${AA}_features.log" \
     --log-level "${LOG_LEVEL}"
 
+echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ Features extracted"
+echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 2: Training autoencoder (${AA})..."
 python scripts/train_pdu_autoencoder.py \
     --features-dir "${FEATURES_DIR}" \
     --out-dir "${EMBEDDINGS_DIR}" \
@@ -88,8 +95,11 @@ python scripts/train_pdu_autoencoder.py \
     --log-file "${LOG_DIR}/${AA}_training.log" \
     --log-level "${LOG_LEVEL}"
 
+echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ Autoencoder trained"
+echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 3: Clustering with HDBSCAN (${AA})..."
+
 cluster_cmd=(
-    python scripts/cluster_pdu_embeddings.py
+    python scripts/cluster_pdu_embeddings_gpu.py
     --embeddings-dir "${EMBEDDINGS_DIR}"
     --out-dir "${CLUSTERS_DIR}"
     --aa "${AA}"
@@ -106,4 +116,8 @@ fi
 
 "${cluster_cmd[@]}"
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') INFO run_aa_pipeline: completed AA=${AA}"
+echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ Clustering complete"
+echo "$(date '+%Y-%m-%d %H:%M:%S') ============================================"
+echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ COMPLETED AA=${AA}"
+echo "$(date '+%Y-%m-%d %H:%M:%S') ============================================"
+echo ""
