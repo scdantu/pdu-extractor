@@ -11,12 +11,16 @@ if [[ -z "${AA}" ]]; then
     exit 1
 fi
 
-# Use per-AA database if it exists, else fall back to monolithic database
-DB_DIR="${DB_DIR:-pdu_db}"
-if [[ -f "${DB_DIR}/pdus_${AA}.sqlite" ]]; then
-    DB="${DB_DIR}/pdus_${AA}.sqlite"
-else
-    DB="${DB:-pdu_output/pdus.sqlite}"
+# Use per-AA database (hardcoded path)
+DB_DIR="${DB_DIR:-/mnt/disk_b/pdu-extractor/per_aa_sqlite}"
+DB="${DB_DIR}/pdus_${AA}.sqlite"
+
+# Verify database exists
+if [[ ! -f "${DB}" ]]; then
+    echo "ERROR: Database not found at ${DB}"
+    echo "DB_DIR=${DB_DIR}"
+    ls -la "${DB_DIR}"/ | head -10
+    exit 1
 fi
 FEATURES_DIR="${FEATURES_DIR:-analysis/features}"
 EMBEDDINGS_DIR="${EMBEDDINGS_DIR:-analysis/embeddings}"
