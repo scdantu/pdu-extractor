@@ -11,7 +11,13 @@ if [[ -z "${AA}" ]]; then
     exit 1
 fi
 
-DB="${DB:-pdu_output/pdus.sqlite}"
+# Use per-AA database if it exists, else fall back to monolithic database
+DB_DIR="${DB_DIR:-pdu_db}"
+if [[ -f "${DB_DIR}/pdus_${AA}.sqlite" ]]; then
+    DB="${DB_DIR}/pdus_${AA}.sqlite"
+else
+    DB="${DB:-pdu_output/pdus.sqlite}"
+fi
 FEATURES_DIR="${FEATURES_DIR:-analysis/features}"
 EMBEDDINGS_DIR="${EMBEDDINGS_DIR:-analysis/embeddings}"
 CLUSTERS_DIR="${CLUSTERS_DIR:-analysis/clusters_umap}"
@@ -26,7 +32,17 @@ LEARNING_RATE="${LEARNING_RATE:-0.001}"
 VALIDATION_FRACTION="${VALIDATION_FRACTION:-0.1}"
 PATIENCE="${PATIENCE:-0}"
 SPACE="${SPACE:-umap}"
-MIN_CLUSTER_SIZE="${MIN_CLUSTER_SIZE:-50}"
+
+# Tune min_cluster_size per amino acid based on PDU count (from db_stats)
+case "${AA}" in
+    L|A) MIN_CLUSTER_SIZE="${MIN_CLUSTER_SIZE:-200}" ;;  # Large classes (1.9–2.1M PDUs)
+    G|V|E|S|D|T|K|I) MIN_CLUSTER_SIZE="${MIN_CLUSTER_SIZE:-80}" ;;  # Medium classes (1.2–1.8M PDUs)
+    R|P|N|F|Q|Y) MIN_CLUSTER_SIZE="${MIN_CLUSTER_SIZE:-50}" ;;  # Small-medium (860k–1.1M PDUs)
+    H|M) MIN_CLUSTER_SIZE="${MIN_CLUSTER_SIZE:-30}" ;;  # Small classes (515k–575k PDUs)
+    W|C) MIN_CLUSTER_SIZE="${MIN_CLUSTER_SIZE:-15}" ;;  # Tiny classes (360k–363k PDUs)
+    *) MIN_CLUSTER_SIZE="${MIN_CLUSTER_SIZE:-50}" ;;
+esac
+
 MIN_SAMPLES="${MIN_SAMPLES:-10}"
 STANDARDIZE="${STANDARDIZE:-false}"
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
