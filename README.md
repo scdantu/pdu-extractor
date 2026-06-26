@@ -289,6 +289,34 @@ python3 scripts/train_pdu_autoencoder.py --aa A --epochs 40
 If `umap-learn` is installed, the CSV output uses UMAP coordinates. If it is not installed, the script still writes
 embeddings and uses a PCA fallback for the two plotting columns.
 
+Run feature export, training, and clustering for one amino-acid class:
+
+```
+scripts/run_aa_pipeline.sh A
+```
+
+Useful environment overrides:
+
+```
+DB=/path/to/pdus.sqlite \
+FEATURES_DIR=analysis/features \
+EMBEDDINGS_DIR=analysis/embeddings \
+CLUSTERS_DIR=analysis/clusters_umap \
+EPOCHS=15 \
+SPACE=umap \
+MIN_CLUSTER_SIZE=50 \
+MIN_SAMPLES=10 \
+scripts/run_aa_pipeline.sh A
+```
+
+For a cluster job array, pass one residue class per task:
+
+```
+for aa in A C D E F G H I K L M N P Q R S T V W Y; do
+  scripts/run_aa_pipeline.sh "$aa"
+done
+```
+
 Cluster the embeddings with HDBSCAN:
 
 ```

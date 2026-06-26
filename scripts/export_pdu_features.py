@@ -17,6 +17,7 @@ def main():
     parser = argparse.ArgumentParser(description="Export fixed-length PDU feature matrices by reference amino acid.")
     parser.add_argument("--db", default="pdu_output/pdus.sqlite", help="PDU SQLite database.")
     parser.add_argument("--out-dir", default="analysis/features", help="Output directory for .npz files.")
+    parser.add_argument("--aa", default=None, help="Optional single reference amino acid to export, e.g. A.")
     parser.add_argument("--bin-width", type=float, default=1.0, help="Radial shell width in Angstroms.")
     parser.add_argument("--radius", type=float, default=15.0, help="Maximum PDU radius in Angstroms.")
     parser.add_argument("--min-pdus", type=int, default=25, help="Skip AA classes with fewer PDUs.")
@@ -46,6 +47,10 @@ def main():
         GROUP BY reference_residue_one_letter
         """
     ).fetchall()
+    if args.aa:
+        aa_counts = [(aa, count) for aa, count in aa_counts if aa == args.aa]
+        if not aa_counts:
+            raise SystemExit(f"No PDUs found for reference amino acid: {args.aa}")
 
     for aa, count in aa_counts:
         if aa not in AA_ORDER or count < args.min_pdus:
