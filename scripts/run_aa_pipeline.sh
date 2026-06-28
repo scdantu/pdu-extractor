@@ -69,34 +69,59 @@ fi
 export PYTHONPATH="${REPO_DIR}:${PYTHONPATH:-}"
 
 echo ""
-echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 1: Extracting features (${AA})..."
-python scripts/export_pdu_features.py \
-    --db "${DB}" \
-    --out-dir "${FEATURES_DIR}" \
-    --aa "${AA}" \
-    --radius "${RADIUS}" \
-    --bin-width "${BIN_WIDTH}" \
-    --residue-encoding "${RESIDUE_ENCODING}" \
-    --log-file "${LOG_DIR}/${AA}_features.log" \
-    --log-level "${LOG_LEVEL}"
+# Check if features already exist
+FEATURES_FILE="${FEATURES_DIR}/pdu_features_${AA}.npz"
+if [[ -f "${FEATURES_FILE}" ]]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 1: Features already exist, skipping extraction"
+    echo "$(date '+%Y-%m-%d %H:%M:%S')   File: ${FEATURES_FILE}"
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 1: Extracting features (${AA})..."
+    python scripts/export_pdu_features.py \
+        --db "${DB}" \
+        --out-dir "${FEATURES_DIR}" \
+        --aa "${AA}" \
+        --radius "${RADIUS}" \
+        --bin-width "${BIN_WIDTH}" \
+        --residue-encoding "${RESIDUE_ENCODING}" \
+        --log-file "${LOG_DIR}/${AA}_features.log" \
+        --log-level "${LOG_LEVEL}"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ Features extracted"
+fi
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ Features extracted"
-echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 2: Training autoencoder (${AA})..."
-python scripts/train_pdu_autoencoder.py \
-    --features-dir "${FEATURES_DIR}" \
-    --out-dir "${EMBEDDINGS_DIR}" \
-    --aa "${AA}" \
-    --latent-dim "${LATENT_DIM}" \
-    --epochs "${EPOCHS}" \
-    --batch-size "${BATCH_SIZE}" \
-    --learning-rate "${LEARNING_RATE}" \
-    --validation-fraction "${VALIDATION_FRACTION}" \
-    --patience "${PATIENCE}" \
-    --log-file "${LOG_DIR}/${AA}_training.log" \
-    --log-level "${LOG_LEVEL}"
+# Check if embeddings already exist
+EMBEDDINGS_FILE="${EMBEDDINGS_DIR}/pdu_embedding_${AA}.npz"
+if [[ -f "${EMBEDDINGS_FILE}" ]]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 2: Embeddings already exist, skipping autoencoder training"
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 2: Training autoencoder (${AA})..."
+    python scripts/train_pdu_autoencoder.py \
+        --features-dir "${FEATURES_DIR}" \
+        --out-dir "${EMBEDDINGS_DIR}" \
+        --aa "${AA}" \
+        --latent-dim "${LATENT_DIM}" \
+        --epochs "${EPOCHS}" \
+        --batch-size "${BATCH_SIZE}" \
+        --learning-rate "${LEARNING_RATE}" \
+        --validation-fraction "${VALIDATION_FRACTION}" \
+        --patience "${PATIENCE}" \
+        --log-file "${LOG_DIR}/${AA}_training.log" \
+        --log-level "${LOG_LEVEL}"
+fi
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ Autoencoder trained"
+echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ Autoencoder done"
 echo "$(date '+%Y-%m-%d %H:%M:%S') STAGE 3: Clustering with HDBSCAN (${AA})..."
+
+# Check if clusters already exist
+CLUSTERS_FILE="${CLUSTERS_DIR}/pdu_clusters_${AA}_${SPACE}.csv"
+if [[ -f "${CLUSTERS_FILE}" ]]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ Clusters already exist for ${AA}, skipping"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') File: ${CLUSTERS_FILE}"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ============================================"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ✓ COMPLETED AA=${AA} (all stages cached)"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ============================================"
+    echo ""
+    exit 0
+fi
 
 cluster_cmd=(
     python scripts/cluster_pdu_embeddings_gpu.py
