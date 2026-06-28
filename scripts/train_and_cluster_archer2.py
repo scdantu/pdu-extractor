@@ -248,26 +248,14 @@ def main():
     logger.info(f"Loading features from {features_file}...")
     data = np.load(features_file)
 
-    # Handle multiple NPZ formats
-    logger.info(f"NPZ keys available: {list(data.files)}")
+    # Load features (key is 'X')
+    features = data['X'].astype(np.float32)
+    pdu_ids = data['pdu_ids']
 
-    # Try different key names
-    if 'features' in data.files:
-        features = data['features'].astype(np.float32)
-    elif 'arr_0' in data.files:
-        features = data['arr_0'].astype(np.float32)
-    elif len(data.files) == 1:
-        # Single array in NPZ, use it
-        key = data.files[0]
-        features = data[key].astype(np.float32)
-        logger.info(f"Using key: {key}")
-    else:
-        logger.error(f"Cannot find features array. Available keys: {list(data.files)}")
-        exit(1)
-
-    pdu_ids = data.get('pdu_ids', None)
-    if pdu_ids is None:
-        pdu_ids = np.arange(len(features))
+    logger.info(f"NPZ metadata:")
+    logger.info(f"  reference_aa: {data['reference_aa'][0]}")
+    logger.info(f"  residue_encoding: {data['residue_encoding'][0]}")
+    logger.info(f"  distance_bins: {len(data['distance_bins'])} bins")
 
     logger.info(f"Loaded {len(features):,} PDU features (shape: {features.shape})")
 
