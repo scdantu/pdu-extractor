@@ -1,7 +1,7 @@
-# ARCHER2-optimized requirements
+# ARCHER2-optimized requirements (AMD EPYC CPUs, no NVIDIA GPUs)
 # Install with: pip install -r requirements-archer2.txt --break-system-packages
 
-# Core scientific stack (CPU-optimized)
+# Core scientific stack (CPU-optimized for AMD)
 numpy>=1.26
 pandas>=2.2
 scikit-learn>=1.4
@@ -11,24 +11,11 @@ scipy>=1.12
 umap-learn>=0.5.6
 hdbscan>=0.8.33
 
-# Visualization
-matplotlib>=3.8
-seaborn>=0.13
-
 # Runtime utilities
 tqdm>=4.66
-duckdb>=1.0
-pyarrow>=15
-polars>=1.0
 
-# PyTorch CPU (for ARCHER2 distributed training)
-# Install PyTorch from source or use conda-forge for better performance on AMD
+# PyTorch CPU (AMD-friendly, no CUDA)
 torch>=2.3
-# Alternative for better ARCHER2 performance (if available):
-# pytorch::pytorch::*[build=cpu*]  (via conda)
-
-# Distributed training
-horovod>=0.28  # Optional: for advanced distributed training
 
 # Data I/O
 h5py>=3.10

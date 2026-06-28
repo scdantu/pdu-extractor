@@ -2,6 +2,8 @@
 
 Account: `e280-dantu`
 
+**Key: Features already on ARCHER2. Job does: Autoencoder training → Clustering**
+
 ## Step 1: Login to ARCHER2
 
 ```bash
@@ -10,19 +12,15 @@ ssh username@login.archer2.ac.uk
 
 ## Step 2: Transfer Code and Features
 
-From your local machine:
+**Features already on ARCHER2**, so only copy code:
 
 ```bash
 # Copy pdu-extractor code
 scp -r /Users/sarathdantu/Projects/vsprojects/mdpdu/pdu-extractor \
     username@login.archer2.ac.uk:~/pdu-extractor
-
-# Copy features (or just features for the AAs you need)
-scp -r /path/to/analysis/features \
-    username@login.archer2.ac.uk:~/pdu-extractor/analysis/
 ```
 
-Or if you're already on ARCHER2 and have shared storage access, copy from there.
+Features are already at: `~/pdu-extractor/analysis/features/pdu_features_*.npz`
 
 ## Step 3: Setup Virtual Environment (One-Time)
 
@@ -40,29 +38,35 @@ This creates `venv_archer2/` with all dependencies.
 ✓ Virtual environment ready
 ```
 
-## Step 4: Submit Training Jobs
+## Step 4: Submit Jobs (Train Autoencoder + Cluster)
 
-### Single AA (LEU), Single Node
+### Single AA (LEU)
 
 ```bash
 sbatch pdu-extractor/submit_archer2.slurm
 ```
 
-Expected runtime: **~2-3 minutes** for 2.1M PDUs
+**What it does:**
+1. Load features from disk (already on ARCHER2)
+2. Train autoencoder: 900-dim → 16-dim embeddings (~2-3 min)
+3. Run HDBSCAN clustering (~1-2 min)
+4. Save embeddings + clusters
 
-### Single AA (different amino acid)
+**Expected total time: ~3-5 minutes** for 2.1M PDUs
+
+### Different amino acid (e.g., Alanine)
 
 ```bash
 sbatch -J PDU_TRAIN_A --export=PDU_AA=A pdu-extractor/submit_archer2.slurm
 ```
 
-### Multiple Nodes (4 nodes = 512 cores)
+### Multiple Nodes (better for clustering I/O)
 
 ```bash
-sbatch -N 4 pdu-extractor/submit_archer2.slurm
+sbatch -N 2 pdu-extractor/submit_archer2.slurm
 ```
 
-Expected runtime: **~30-45 seconds**
+**Expected time: ~2-4 minutes** (faster clustering with more cores)
 
 ### All 20 AAs in Parallel
 
@@ -133,29 +137,48 @@ tail -f logs/pdu_train_<jobid>.out
 
 Expected output:
 ```
-ARCHER2 PDU Autoencoder Training
+ARCHER2: Train Autoencoder + Cluster
 AA: L
 Nodes: 1
-Tasks: 128
-...
+Time limit: 2:00:00
+========================================
 
-Training on ARCHER2: 1 processes, rank 0
+Loading features from analysis/features/pdu_features_L.npz...
 Loaded 2,086,440 PDU features (shape: (2086440, 900))
 
-Epoch 1/15, Batch 100/2041, Loss: 0.000234
-Epoch 1/15, Batch 200/2041, Loss: 0.000198
+STEP 1: Train Autoencoder
+========================================
+
+Epoch 1/15, Batch 500/2041, Loss: 0.000234
+Epoch 1/15, Batch 1000/2041, Loss: 0.000198
 ...
 
 Epoch 15/15: train_loss=0.000184, val_loss=0.000182
-✓ Training complete
+Best validation loss: 0.000182
+
+STEP 2: HDBSCAN Clustering
+========================================
+
+Clustering 2,086,440 embeddings with HDBSCAN...
+Found 740 clusters
+Noise points: 155,777 (7.5%)
+
+✓ Complete: Autoencoder trained + Clustering done
+
+Generated files:
+  - analysis/embeddings/pdu_embedding_L.npz
+  - analysis/clusters_umap/pdu_clusters_L_umap.csv
 ```
 
 ## Step 7: Copy Results Back
 
-After training completes, copy embeddings to your Mac:
+After job completes, copy embeddings and clusters to your Mac:
 
 ```bash
 scp -r username@login.archer2.ac.uk:~/pdu-extractor/analysis/embeddings \
+    /Users/sarathdantu/Projects/vsprojects/mdpdu/pdu-extractor/analysis/
+
+scp -r username@login.archer2.ac.uk:~/pdu-extractor/analysis/clusters_umap \
     /Users/sarathdantu/Projects/vsprojects/mdpdu/pdu-extractor/analysis/
 ```
 
@@ -215,11 +238,11 @@ Rough cost: £1-2 per job
 
 ## Next Steps
 
-1. All embeddings trained ✓
-2. Copy to local Mac ✓
-3. Run HDBSCAN clustering locally
-4. Run PyCoM enrichment analysis
-5. Check if 740 LEU clusters have biological meaning
+1. Submit all 20 AAs to ARCHER2 ✓
+2. Training + clustering happens on ARCHER2 ✓
+3. Copy embeddings + clusters back to Mac ✓
+4. Run PyCoM enrichment analysis locally
+5. Check if 740 LEU clusters have biological meaning (CATH/EC separation)
 
 ## Support
 
