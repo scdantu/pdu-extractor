@@ -171,7 +171,7 @@ def main():
             logger.info(f"  {ec}: {count:,} ({pct:.1f}%)")
 
         contingency_ec = pd.crosstab(ec_df['enzyme_ec'], ec_df['cluster'])
-        chi2, p_val, _, _ = chi2_contingency(contingency_ec.values)
+        chi2, p_val = chi2_contingency_manual(contingency_ec.values)
         logger.info(f"  χ² = {chi2:.1f}, p = {p_val:.2e}")
 
         contingency_ec.to_csv(Path(args.out_dir) / f"contingency_ec_{args.aa}.csv")
