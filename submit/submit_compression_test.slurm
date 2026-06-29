@@ -88,58 +88,14 @@ for AA in "${AAS[@]}"; do
         for DIM in "${DIMS[@]}"; do
             echo "    Testing: ${DIM}D"
 
-            # Train autoencoder
-            EMBEDDING_FILE="$OUT_SUBDIR/embedding_${AA}_${DIST}a_${DIM}d.npz"
-            if [ ! -f "$EMBEDDING_FILE" ]; then
-                python3 bin/train/train_pdu_autoencoder.py \
-                    --features "$FEATURES_FILE" \
-                    --latent-dim "$DIM" \
-                    --epochs "$EPOCHS" \
-                    --batch-size 32 \
-                    --out-file "$EMBEDDING_FILE" \
-                    --aa "$AA" \
-                    2>&1 | grep -E "(Epoch|Loss|✓)" | tail -3 || true
+            # Train autoencoder and cluster in one step
+            STATS=$(python3 bin/analyze/train_and_cluster_compression_test.py "$AA" "$DIST" "$DIM" 2>&1 | tail -1)
+
+            if [ ! -z "$STATS" ]; then
+                EMBEDDING_FILE="$TEMP_DIST_DIR/embedding_${AA}_${DIST}a_${DIM}d.npz"
+                CLUSTER_FILE="$TEMP_DIST_DIR/clusters_${AA}_${DIST}a_${DIM}d.csv"
+                echo "$DIST,$DIM,$FEATURES_FILE,$EMBEDDING_FILE,$CLUSTER_FILE,$STATS,?" >> "$SUMMARY"
             fi
-
-            # Cluster directly with HDBSCAN
-            CLUSTER_FILE="$OUT_SUBDIR/clusters_${AA}_${DIST}a_${DIM}d.csv"
-
-            python3 << PYEOF
-import numpy as np
-import pandas as pd
-from hdbscan import HDBSCAN
-
-# Load embedding
-data = np.load('$EMBEDDING_FILE')
-Z = data['Z']  # 16D latent space
-pdu_ids = data['pdu_ids']
-
-# Cluster
-clusterer = HDBSCAN(min_cluster_size=200, min_samples=5)
-labels = clusterer.fit_predict(Z)
-confidences = clusterer.probabilities_
-
-# Save results
-df = pd.DataFrame({
-    'pdu_id': pdu_ids,
-    'cluster': labels,
-    'cluster_probability': confidences
-})
-df.to_csv('$CLUSTER_FILE', index=False)
-print(f"Clustered {len(df):,} PDUs into {labels.max()+1} clusters")
-PYEOF
-
-            # Get stats
-            STATS=$(python3 << PYEOF
-import pandas as pd
-df = pd.read_csv('$CLUSTER_FILE')
-assigned = df[df['cluster'] != -1]
-noise_pct = 100 * (df['cluster'] == -1).sum() / len(df)
-avg_conf = assigned['cluster_probability'].mean() if len(assigned) > 0 else 0
-print(f"{noise_pct:.1f},{avg_conf:.3f}")
-PYEOF
-)
-            echo "$DIST,$DIM,$FEATURES_FILE,$EMBEDDING_FILE,$CLUSTER_FILE,$(echo $STATS),?" >> "$SUMMARY"
         done
     done
 
