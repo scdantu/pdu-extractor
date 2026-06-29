@@ -80,17 +80,27 @@ def main():
     logger.info(f"\n[2/3] Mapping PDU → PDB → PyCoM...")
 
     clusters_df['pdb_id'] = clusters_df['pdu_id'].map(pdu_to_pdb)
-    clusters_df = clusters_df.dropna(subset=['pdb_id'])
-    logger.info(f"  Mapped: {len(clusters_df):,} / {len(clusters_df) + (len(pdu_to_pdb) - len(clusters_df)):,}")
 
-    # Map to PyCoM metadata
-    pycom_map = {row['pdb_id']: row for _, row in pycom_df.iterrows()}
+    # Convert PDB IDs to string and normalize to uppercase for matching
+    clusters_df['pdb_id'] = clusters_df['pdb_id'].astype(str).str.upper()
+    pycom_df['pdb_id'] = pycom_df['pdb_id'].astype(str).str.upper()
 
-    clusters_df['cath'] = clusters_df['pdb_id'].apply(lambda x: pycom_map.get(str(x).upper(), {}).get('cath'))
-    clusters_df['enzyme_ec'] = clusters_df['pdb_id'].apply(lambda x: pycom_map.get(str(x).upper(), {}).get('enzyme_ec'))
-    clusters_df['biological_process'] = clusters_df['pdb_id'].apply(lambda x: pycom_map.get(str(x).upper(), {}).get('biological_process'))
-    clusters_df['molecular_function'] = clusters_df['pdb_id'].apply(lambda x: pycom_map.get(str(x).upper(), {}).get('molecular_function'))
-    clusters_df['cellular_component'] = clusters_df['pdb_id'].apply(lambda x: pycom_map.get(str(x).upper(), {}).get('cellular_component'))
+    # Merge on PDB ID
+    clusters_df = clusters_df.merge(
+        pycom_df[['pdb_id', 'cath_class', 'enzyme_commission', 'domain', 'disease_name']],
+        on='pdb_id',
+        how='left'
+    )
+
+    mapped_count = clusters_df['pdb_id'].notna().sum()
+    logger.info(f"  Mapped: {mapped_count:,} PDUs to PyCoM")
+
+    # Rename columns for consistency with analysis
+    clusters_df = clusters_df.rename(columns={
+        'cath_class': 'cath',
+        'enzyme_commission': 'enzyme_ec',
+        'domain': 'pfam'
+    })
 
     # Analysis
     logger.info(f"\n[3/3] Enrichment analysis...")
@@ -99,15 +109,15 @@ def main():
     n_clusters = assigned_df['cluster'].nunique()
 
     logger.info(f"\n### CATH Enrichment")
-    cath_df = assigned_df.dropna(subset=['cath'])
+    cath_df = assigned_df.dropna(subset=['cath']).copy()
     logger.info(f"PDUs with CATH: {len(cath_df):,} / {len(assigned_df):,}")
 
     if len(cath_df) > 0:
+        logger.info(f"Top CATH classes:")
         cath_counts = cath_df['cath'].value_counts()
-        print(f"\nTop CATH classes:")
         for cath, count in cath_counts.head(10).items():
             pct = 100 * count / len(cath_df)
-            print(f"  {cath}: {count:,} ({pct:.1f}%)")
+            logger.info(f"  {cath}: {count:,} ({pct:.1f}%)")
 
         contingency_cath = pd.crosstab(cath_df['cath'], cath_df['cluster'])
         chi2, p_val, _, _ = chi2_contingency(contingency_cath.values)
@@ -116,15 +126,15 @@ def main():
         contingency_cath.to_csv(Path(args.out_dir) / f"contingency_cath_{args.aa}.csv")
 
     logger.info(f"\n### EC Number Enrichment")
-    ec_df = assigned_df.dropna(subset=['enzyme_ec'])
+    ec_df = assigned_df.dropna(subset=['enzyme_ec']).copy()
     logger.info(f"PDUs with EC: {len(ec_df):,} / {len(assigned_df):,}")
 
     if len(ec_df) > 0:
+        logger.info(f"Top EC numbers:")
         ec_counts = ec_df['enzyme_ec'].value_counts()
-        print(f"\nTop EC classes:")
         for ec, count in ec_counts.head(10).items():
             pct = 100 * count / len(ec_df)
-            print(f"  {ec}: {count:,} ({pct:.1f}%)")
+            logger.info(f"  {ec}: {count:,} ({pct:.1f}%)")
 
         contingency_ec = pd.crosstab(ec_df['enzyme_ec'], ec_df['cluster'])
         chi2, p_val, _, _ = chi2_contingency(contingency_ec.values)
@@ -132,16 +142,16 @@ def main():
 
         contingency_ec.to_csv(Path(args.out_dir) / f"contingency_ec_{args.aa}.csv")
 
-    logger.info(f"\n### GO Enrichment")
-    bp_df = assigned_df.dropna(subset=['biological_process'])
-    logger.info(f"PDUs with GO terms: {len(bp_df):,} / {len(assigned_df):,}")
+    logger.info(f"\n### Pfam Domain Enrichment")
+    pfam_df = assigned_df.dropna(subset=['pfam']).copy()
+    logger.info(f"PDUs with Pfam: {len(pfam_df):,} / {len(assigned_df):,}")
 
-    if len(bp_df) > 0:
-        bp_terms = bp_df['biological_process'].value_counts()
-        print(f"\nTop biological processes:")
-        for term, count in bp_terms.head(10).items():
-            pct = 100 * count / len(bp_df)
-            print(f"  {term}: {count:,} ({pct:.1f}%)")
+    if len(pfam_df) > 0:
+        logger.info(f"Top Pfam domains:")
+        pfam_counts = pfam_df['pfam'].value_counts()
+        for pfam, count in pfam_counts.head(10).items():
+            pct = 100 * count / len(pfam_df)
+            logger.info(f"  {pfam}: {count:,} ({pct:.1f}%)")
 
     # Save enriched clusters
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)

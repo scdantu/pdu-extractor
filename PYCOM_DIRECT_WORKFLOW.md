@@ -1,67 +1,77 @@
-# PyCoM Direct Enrichment (No UniProt Mapping)
+# PyCoM Direct Enrichment (Local Database)
 
-**Problem:** PDB → UniProt mapping yielded 0 results. UniProt lookup too brittle.
+**Problem:** REST API and UniProt mapping both failed to return results.
 
-**Solution:** Query PyCoM API directly for PDB entries, build local reference, skip UniProt entirely.
+**Solution:** Use LOCAL PyCoM Python library with downloaded database files.
+
+## Setup: Download PyCoM Database
+
+1. Visit: https://pycom.brunel.ac.uk/database.html
+2. Download both files:
+   - `pycom.db` (main database)
+   - `pycom.mat` (coevolution matrices)
+3. Place them in a known directory (e.g., `/Volumes/local_drive/pycom/`)
 
 ## Workflow
 
-### Step 1: Fetch PyCoM PDB Mapping (One-time, ~10 min)
+### Step 1: Build PyCoM PDB Mapping (One-time, ~20 min)
 
 ```bash
-python3 pdu-extractor/scripts/fetch_pycom_pdb_mapping.py \
-    --out-file pdb_pycom_mapping.csv \
-    --batch-size 100
+python3 pdu-extractor/scripts/fetch_pycom_pdb_local.py \
+    --db-path /path/to/pycom.db \
+    --mat-path /path/to/pycom.mat \
+    --out-file pdb_pycom_mapping.csv
 ```
 
 **What it does:**
-1. Query PyCoM API with `has_pdb=true`
-2. Extract for each PDB entry:
-   - PDB ID
+1. Initialize local PyCoM database (Python library)
+2. Query for all entries with `has_pdb=true`
+3. Use `DataLoader` to add biological features:
    - CATH classification
    - EC number (enzyme)
-   - GO terms (biological process, molecular function, cellular component)
+   - PDB IDs
    - Pfam domains
    - Disease associations
-   - Organism, length
-
-3. Save to CSV: `pdb_pycom_mapping.csv`
+4. Save to CSV: `pdb_pycom_mapping.csv`
 
 **Output columns:**
 ```
-pdb_id | cath | enzyme_ec | biological_process | molecular_function | cellular_component | pfam | disease | organism | length
+uniprot_id | pdb_id | cath_class | enzyme_commission | domain | disease_name | organism_id | sequence_length | helix_frac | turn_frac | strand_frac
 ```
 
-**Size estimate:** 200K+ PDB entries = ~100 MB CSV (reusable for all AAs)
+**Size estimate:** 450K+ UniProt entries with PDB = ~100-200 MB CSV (reusable for all AAs)
 
 ### Step 2: Run Enrichment for Each AA
 
+Once `pdb_pycom_mapping.csv` is created, run enrichment for each amino acid:
+
 ```bash
-# LEU
+# LEU (example)
 python3 pdu-extractor/scripts/analyze_clusters_pycom_direct.py \
     --clusters analysis/clusters_umap/pdu_clusters_L_umap.csv \
-    --db pdus_L.sqlite \
+    --db pdb_db/pdus_L.sqlite \
     --pycom-mapping pdb_pycom_mapping.csv \
     --aa L \
     --out-dir analysis/pycom_enrichment
 
-# All AAs (batch)
+# All AAs (parallel batch)
 for aa in A C D E F G H I K L M N P Q R S T V W Y; do
   python3 pdu-extractor/scripts/analyze_clusters_pycom_direct.py \
     --clusters "analysis/clusters_umap/pdu_clusters_${aa}_umap.csv" \
-    --db "pdus_${aa}.sqlite" \
+    --db "pdb_db/pdus_${aa}.sqlite" \
     --pycom-mapping pdb_pycom_mapping.csv \
     --aa "$aa" \
-    --out-dir analysis/pycom_enrichment
+    --out-dir analysis/pycom_enrichment &
 done
+wait
 ```
 
 **Mapping chain:**
 ```
-PDU ID → [database] → PDB ID → [PyCoM CSV] → CATH/EC/GO
+PDU ID → [SQLite database] → PDB ID → [pdb_pycom_mapping.csv] → CATH/EC/GO
 ```
 
-**Runtime:** ~2 min per AA
+**Runtime:** ~1-2 min per AA (parallel: ~5 min total for all 20)
 
 ### Step 3: Check Results
 
