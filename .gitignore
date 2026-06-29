@@ -98,7 +98,6 @@ pypdu/
 *.egg-info/
 inputf.txt
 outputf.txt
-bin/
 kmers.txt
 analysis/
 pdu_output/
