@@ -39,8 +39,8 @@
 # Setup environment
 source /work/e280/e280-Dantu/scdantu/Projects/pdus/pypdu/bin/activate
 
-# Set Python path to include pdu-extractor scripts
-export PYTHONPATH="$PYTHONPATH:/work/e280/e280-Dantu/scdantu/Projects/pdus/pdu-extractor/bin"
+# Set Python path to include pdu-extractor root (for kmers module) + bin
+export PYTHONPATH="/work/e280/e280-Dantu/scdantu/Projects/pdus/pdu-extractor:/work/e280/e280-Dantu/scdantu/Projects/pdus/pdu-extractor/bin:$PYTHONPATH"
 
 # Working directory
 export WORK_DIR="/work/e280/e280-Dantu/scdantu/Projects/pdus/pdu-extractor"
