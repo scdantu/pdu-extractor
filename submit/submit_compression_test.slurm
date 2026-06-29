@@ -63,17 +63,25 @@ for AA in "${AAS[@]}"; do
         echo "  Distance: ${DIST}Å"
 
         # Extract features (one-time per distance)
-        FEATURES_FILE="$OUT_SUBDIR/features_${AA}_${DIST}a.npz"
-        if [ ! -f "$FEATURES_FILE" ]; then
-            echo "    → Extracting features..."
+        # Script writes to: $OUT_SUBDIR/pdu_features_${AA}.npz
+        FEATURES_FILE="$OUT_SUBDIR/pdu_features_${AA}.npz"
+
+        # Create temp dir for this distance
+        TEMP_DIST_DIR="$OUT_SUBDIR/temp_${AA}_${DIST}a"
+        mkdir -p "$TEMP_DIST_DIR"
+
+        if [ ! -f "$TEMP_DIST_DIR/pdu_features_${AA}.npz" ]; then
+            echo "    → Extracting features (radius=${DIST}Å)..."
             python3 bin/extract/export_pdu_features.py \
                 --db pdb_db/pdus_${AA}.sqlite \
-                --out-file "$FEATURES_FILE" \
-                --distance-cutoff $DIST \
+                --out-dir "$TEMP_DIST_DIR" \
+                --radius $DIST \
                 --aa "$AA" \
-                2>&1 | grep -E "(INFO|ERROR|✓)" || true
+                2>&1 | grep -E "(Processing|Saved|ERROR)" || true
+            FEATURES_FILE="$TEMP_DIST_DIR/pdu_features_${AA}.npz"
         else
             echo "    → Features exist (skipping)"
+            FEATURES_FILE="$TEMP_DIST_DIR/pdu_features_${AA}.npz"
         fi
 
         # Test each dimension
@@ -93,16 +101,33 @@ for AA in "${AAS[@]}"; do
                     2>&1 | grep -E "(Epoch|Loss|✓)" | tail -3 || true
             fi
 
-            # Cluster
+            # Cluster directly with HDBSCAN
             CLUSTER_FILE="$OUT_SUBDIR/clusters_${AA}_${DIST}a_${DIM}d.csv"
-            if [ ! -f "$CLUSTER_FILE" ]; then
-                python3 bin/cluster/cluster_pdu_embeddings_gpu.py \
-                    --embeddings "$EMBEDDING_FILE" \
-                    --out-file "$CLUSTER_FILE" \
-                    --min-cluster-size 200 \
-                    --aa "$AA" \
-                    2>&1 | grep -E "(clusters|noise|✓)" || true
-            fi
+
+            python3 << PYEOF
+import numpy as np
+import pandas as pd
+from hdbscan import HDBSCAN
+
+# Load embedding
+data = np.load('$EMBEDDING_FILE')
+Z = data['Z']  # 16D latent space
+pdu_ids = data['pdu_ids']
+
+# Cluster
+clusterer = HDBSCAN(min_cluster_size=200, min_samples=5)
+labels = clusterer.fit_predict(Z)
+confidences = clusterer.probabilities_
+
+# Save results
+df = pd.DataFrame({
+    'pdu_id': pdu_ids,
+    'cluster': labels,
+    'cluster_probability': confidences
+})
+df.to_csv('$CLUSTER_FILE', index=False)
+print(f"Clustered {len(df):,} PDUs into {labels.max()+1} clusters")
+PYEOF
 
             # Get stats
             STATS=$(python3 << PYEOF
