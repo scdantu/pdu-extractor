@@ -31,21 +31,30 @@
 #   squeue --array
 #   tail -f logs/stability_0.out
 
-module load cray-python
+# Setup environment
+source /work/e280/e280-Dantu/scdantu/Projects/pdus/pypdu/bin/activate
 
-export VENV_DIR="venv_archer2"
-source "$VENV_DIR/bin/activate"
+# Set Python path to include pdu-extractor scripts
+export PYTHONPATH="$PYTHONPATH:/work/e280/e280-Dantu/scdantu/Projects/pdus/pdu-extractor/bin"
 
+# Working directory
+export WORK_DIR="/work/e280/e280-Dantu/scdantu/Projects/pdus/pdu-extractor"
+export OUT_DIR="$WORK_DIR/analysis"
+
+# Thread settings for CPU efficiency
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export KMP_AFFINITY=disabled
 
+# Change to work directory
+cd "$WORK_DIR" || exit 1
+
 # Parameters
 AA="${PDU_AA:-L}"
-EMBEDDINGS_DIR="pdu-extractor/analysis/embeddings"
-OUT_DIR="pdu-extractor/analysis/stability_parallel"
+EMBEDDINGS_DIR="$OUT_DIR/embeddings"
 
-mkdir -p "$OUT_DIR" logs
+# Create output directories
+mkdir -p "$OUT_DIR/stability_parallel" logs
 
 # Task ID from array
 TASK_ID=$SLURM_ARRAY_TASK_ID
@@ -70,11 +79,11 @@ echo "=========================================="
 echo ""
 
 # Run stability validation for this task
-python3 pdu-extractor/scripts/validate_stability_parallel.py \
+python3 bin/validate/validate_stability_parallel.py \
     --task-id $TASK_ID \
     --embeddings "${EMBEDDINGS_DIR}/pdu_embedding_${AA}.npz" \
     --aa "$AA" \
-    --out-dir "$OUT_DIR" \
+    --out-dir "$OUT_DIR/stability_parallel" \
     --min-cluster-size 200
 
 echo ""
