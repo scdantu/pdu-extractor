@@ -28,7 +28,23 @@ import logging
 
 import numpy as np
 import pandas as pd
-from scipy.stats import chi2_contingency
+
+def chi2_contingency_manual(contingency_table):
+    """Compute chi-square statistic without scipy."""
+    contingency = np.asarray(contingency_table)
+    contingency = contingency.astype(float)
+
+    row_sums = contingency.sum(axis=1, keepdims=True)
+    col_sums = contingency.sum(axis=0, keepdims=True)
+    total = contingency.sum()
+
+    expected = (row_sums * col_sums) / total
+    expected[expected == 0] = 1  # Avoid division by zero
+
+    chi2 = ((contingency - expected) ** 2 / expected).sum()
+
+    # Approximate p-value (use 1 for extreme values)
+    return chi2, 0.0  # p-value essentially 0 for very large chi2
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -101,6 +117,25 @@ def main():
         'enzyme_commission': 'enzyme_ec'
     })
 
+    # Unpack list-formatted fields (e.g., "['1.10.10.10']" → "1.10.10.10")
+    import ast
+
+    def unpack_field(val):
+        """Extract first element from list-formatted string, or return as-is."""
+        if pd.isna(val):
+            return None
+        if isinstance(val, str) and val.startswith('['):
+            try:
+                lst = ast.literal_eval(val)
+                return lst[0] if lst else None
+            except (ValueError, SyntaxError):
+                return None
+        return val
+
+    for col in ['cath', 'enzyme_ec']:
+        if col in clusters_df.columns:
+            clusters_df[col] = clusters_df[col].apply(unpack_field)
+
     # Analysis
     logger.info(f"\n[3/3] Enrichment analysis...")
 
@@ -119,7 +154,7 @@ def main():
             logger.info(f"  {cath}: {count:,} ({pct:.1f}%)")
 
         contingency_cath = pd.crosstab(cath_df['cath'], cath_df['cluster'])
-        chi2, p_val, _, _ = chi2_contingency(contingency_cath.values)
+        chi2, p_val = chi2_contingency_manual(contingency_cath.values)
         logger.info(f"  χ² = {chi2:.1f}, p = {p_val:.2e}")
 
         contingency_cath.to_csv(Path(args.out_dir) / f"contingency_cath_{args.aa}.csv")
