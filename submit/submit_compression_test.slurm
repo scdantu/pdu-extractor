@@ -73,7 +73,7 @@ for AA in "${AAS[@]}"; do
         if [ ! -f "$TEMP_DIST_DIR/pdu_features_${AA}.npz" ]; then
             echo "    → Extracting features (radius=${DIST}Å)..."
             python3 bin/extract/export_pdu_features.py \
-                --db pdb_db/pdus_${AA}.sqlite \
+                --db per_aa_sqlite/pdus_${AA}.sqlite \
                 --out-dir "$TEMP_DIST_DIR" \
                 --radius $DIST \
                 --aa "$AA" \
