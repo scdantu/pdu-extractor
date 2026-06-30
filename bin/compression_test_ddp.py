@@ -28,7 +28,19 @@ from pdusearch.features import FeatureExtractor, Encoding
 from pdusearch.models import train_autoencoder_ddp, TrainingConfig
 from pdusearch.clustering import HDBSCANClusterer, ClusterMetrics
 from pdusearch.config import Config
-from pdusearch.logging_utils import configure_logging, log_separator
+try:
+    from pdusearch.logging_utils import configure_logging, log_separator
+except ImportError:
+    # Fallback if logging_utils doesn't exist
+    import logging
+    def configure_logging(log_file=None, log_level="INFO"):
+        logging.basicConfig(
+            level=getattr(logging, log_level),
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            filename=log_file if log_file else None
+        )
+    def log_separator(logger):
+        logger.info("=" * 70)
 
 logger = logging.getLogger(__name__)
 

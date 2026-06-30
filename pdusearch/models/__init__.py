@@ -9,6 +9,7 @@ Models:
 
 Training:
     - train_autoencoder(): High-level training function
+    - train_autoencoder_ddp(): Distributed training with DDP
     - train_autoencoder_with_validation(): Training with validation set
     - save_model(), load_model(): Model persistence
 
@@ -33,10 +34,12 @@ from .training import (
     save_model,
     load_model,
 )
+from pdusearch.config import TrainingConfig
 
 __all__ = [
     "Autoencoder",
     "VariationalAutoencoder",
+    "TrainingConfig",
     "train_autoencoder",
     "train_autoencoder_ddp",
     "train_autoencoder_with_validation",
